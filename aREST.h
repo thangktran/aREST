@@ -13,8 +13,8 @@
   Version 2.7.4: Fix for the Arduino Ethernet 2.0 library
   Version 2.7.3: Added support to set your own ID when using API key
   Version 2.7.2: Bug fixes for aREST.io
-  Version 2.7.1: Additional fixes & optimisations by @eykamp 
-  Version 2.7.0: Several fixes & optimisations by @eykamp 
+  Version 2.7.1: Additional fixes & optimisations by @eykamp
+  Version 2.7.0: Several fixes & optimisations by @eykamp
   Version 2.6.0: Added support for new aREST cloud app
   Version 2.5.0: Added support for the ESP32 WiFi chip (local & cloud)
   Version 2.4.2: Added publish() support for MKR1000
@@ -73,37 +73,17 @@
 #undef MQTT_MAX_PACKET_SIZE
 #define MQTT_MAX_PACKET_SIZE 512
 
-// Using ESP8266 ?
-#if defined(ESP8266) || defined(ESP32)
 #include "stdlib_noniso.h"
-#endif
 
-// Which board?
-#if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(CORE_WILDFIRE) || defined(ESP8266) || defined(ESP32)
 #define NUMBER_ANALOG_PINS 16
 #define NUMBER_DIGITAL_PINS 54
 #define OUTPUT_BUFFER_SIZE 2000
-#elif defined(__AVR_ATmega328P__) && !defined(ADAFRUIT_CC3000_H)
-#define NUMBER_ANALOG_PINS 6
-#define NUMBER_DIGITAL_PINS 14
-#define OUTPUT_BUFFER_SIZE 350
-#elif defined(ADAFRUIT_CC3000_H)
-#define NUMBER_ANALOG_PINS 6
-#define NUMBER_DIGITAL_PINS 14
-#define OUTPUT_BUFFER_SIZE 275
-#else
-#define NUMBER_ANALOG_PINS 6
-#define NUMBER_DIGITAL_PINS 14
-#define OUTPUT_BUFFER_SIZE 350
-#endif
 
 // Hardware data
 #if defined(ESP8266)
 #define HARDWARE "esp8266"
 #elif defined(ESP32)
 #define HARDWARE "esp32"
-#else
-#define HARDWARE "arduino"
 #endif
 
 // Size of name & ID
@@ -146,20 +126,12 @@
 
 // Default number of max. exposed variables
 #ifndef NUMBER_VARIABLES
-  #if defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__) || defined(CORE_WILDFIRE) || defined(ESP8266)|| defined(ESP32) || !defined(ADAFRUIT_CC3000_H)
   #define NUMBER_VARIABLES 10
-  #else
-  #define NUMBER_VARIABLES 5
-  #endif
 #endif
 
 // Default number of max. exposed functions
 #ifndef NUMBER_FUNCTIONS
-  #if defined(__AVR_ATmega1280__) || defined(ESP32) || defined(__AVR_ATmega2560__) || defined(CORE_WILDFIRE) || defined(ESP8266)
   #define NUMBER_FUNCTIONS 10
-  #else
-  #define NUMBER_FUNCTIONS 5
-  #endif
 #endif
 
 
@@ -183,9 +155,9 @@ struct TypedVariable: Variable {
 
   TypedVariable(T *v, bool q) : var{v} { quotable = q; }
 
-  void addToBuffer(aREST *arest) const override { 
+  void addToBuffer(aREST *arest) const override {
     arest->addToBuffer(*var, quotable);
-  }  
+  }
 };
 
 public:
@@ -207,14 +179,14 @@ aREST(char* rest_remote_server, int rest_port) {
 
 
 template<typename T>
-void variable(const char *name, T *var, bool quotable) { 
+void variable(const char *name, T *var, bool quotable) {
   variables[variables_index] = new TypedVariable<T>(var, quotable);
   variable_names[variables_index] = name;
   variables_index++;
 }
 
 template<typename T>
-void variable(const char *name, T *var) { 
+void variable(const char *name, T *var) {
   variable(name, var, true);
 }
 
@@ -383,11 +355,10 @@ void glow_led() {
 void addToBufferF(const __FlashStringHelper *toAdd){
 
   if (DEBUG_MODE) {
-    #if defined(ESP8266)|| defined (ESP32)
     Serial.print("Memory loss:");
     Serial.println(freeMemory - ESP.getFreeHeap(),DEC);
     freeMemory = ESP.getFreeHeap();
-    #endif
+
     Serial.print(F("Added to buffer as progmem: "));
     Serial.println(toAdd);
   }
@@ -414,11 +385,9 @@ void send_http_headers(){
 void reset_status() {
 
   if (DEBUG_MODE) {
-    #if defined(ESP8266)|| defined (ESP32)
-      Serial.print("Memory loss before reset:");
-      Serial.println(freeMemory - ESP.getFreeHeap(),DEC);
-      freeMemory = ESP.getFreeHeap();
-    #endif
+    Serial.print("Memory loss before reset:");
+    Serial.println(freeMemory - ESP.getFreeHeap(),DEC);
+    freeMemory = ESP.getFreeHeap();
   }
 
   reset();
@@ -429,142 +398,17 @@ void reset_status() {
   //memset(&buffer[0], 0, sizeof(buffer));
 
   if (DEBUG_MODE) {
-    #if defined(ESP8266)|| defined (ESP32)
     Serial.print("Memory loss after reset:");
     Serial.println(freeMemory - ESP.getFreeHeap(),DEC);
     freeMemory = ESP.getFreeHeap();
     Serial.print("Memory free:");
     Serial.println(freeMemory, DEC);
-    #endif
   }
 
 }
 
-// Handle request with the Adafruit CC3000 WiFi library
-#ifdef ADAFRUIT_CC3000_H
-void handle(Adafruit_CC3000_ClientRef& client) {
 
-  if (client.available()) {
-
-    // Handle request
-    handle_proto(client,true,0,false);
-
-    // Answer
-    sendBuffer(client,32,20);
-    client.stop();
-
-    // Reset variables for the next command
-    reset_status();
-
-  }
-}
-
-template <typename T>
-void publish(Adafruit_CC3000_ClientRef& client, const String& eventName, T value) {
-
-  // Publish request
-  publish_proto(client, eventName, value);
-
-}
-
-// Handle request with the Arduino Yun
-#elif defined(_YUN_CLIENT_H_)
-void handle(YunClient& client) {
-
-  if (client.available()) {
-
-    // Handle request
-    handle_proto(client,false,0,false);
-
-    // Answer
-    sendBuffer(client,25,10);
-    client.stop();
-
-    // Reset variables for the next command
-    reset_status();
-  }
-}
-
-template <typename T>
-void publish(YunClient& client, const String& eventName, T value) {
-
-  // Publish request
-  publish_proto(client, eventName, value);
-
-}
-
-// Handle request with the Adafruit BLE board
-#elif defined(_ADAFRUIT_BLE_UART_H_)
-void handle(Adafruit_BLE_UART& serial) {
-
-  if (serial.available()) {
-
-    // Handle request
-    handle_proto(serial,false,0,false);
-
-    // Answer
-    sendBuffer(serial,100,1);
-
-    // Reset variables for the next command
-    reset_status();
-  }
-}
-
-// template <typename T>
-// void publish(Adafruit_BLE_UART& serial, const String& eventName, T value) {
-
-//   // Publish request
-//   publish_proto(client, eventName, value);
-
-// }
-
-// Handle request for the Arduino Ethernet shield
-#elif defined(ethernet_h_)
-void handle(EthernetClient& client){
-
-  if (client.available()) {
-
-    // Handle request
-    handle_proto(client,true,0,false);
-
-    // Answer
-    sendBuffer(client,50,0);
-    client.stop();
-
-    // Reset variables for the next command
-    reset_status();
-  }
-}
-
-template <typename T>
-void publish(EthernetClient& client, const String& eventName, T value) {
-
-  // Publish request
-  publish_proto(client, eventName, value);
-
-}
-
-// Handle request for the Cytron Clone ESP8266
-#elif defined(_CYTRONWIFISERVER_H_)
-void handle(ESP8266Client& client){
-
-  if (client.available()) {
-
-    // Handle request
-    handle_proto(client,true,0,true);
-
-    // Answer
-    sendBuffer(client,0,0);
-    client.stop();
-
-    // Reset variables for the next command
-    reset_status();
-
-  }
-}
-
-// Handle request for the ESP8266 chip
-#elif defined(ESP8266) || defined (ESP32)
+#if defined(ESP8266) || defined (ESP32)
 void handle(WiFiClient& client){
 
   if (DEBUG_MODE) {
@@ -624,114 +468,8 @@ void publish(WiFiClient& client, const String& eventName, T value) {
 
 }
 
-// Handle request for the Arduino MKR1000 board
-#elif defined(WIFI_H)
-void handle(WiFiClient& client){
-
-  if (client.available()) {
-
-    if (DEBUG_MODE) {Serial.println("Request received");}
-
-    // Handle request
-    handle_proto(client,true,0,true);
-
-    // Answer
-    sendBuffer(client,0,0);
-    client.stop();
-
-    // Reset variables for the next command
-    reset_status();
-  }
-}
-
-template <typename T>
-void publish(WiFiClient& client, const String& eventName, T value) {
-
-  // Publish request
-  publish_proto(client, eventName, value);
-
-}
-
-// Handle request for the Arduino WiFi shield
-#elif defined(WiFi_h)
-void handle(WiFiClient& client){
-
-  if (client.available()) {
-
-    if (DEBUG_MODE) {Serial.println("Request received");}
-
-    // Handle request
-    handle_proto(client,true,0,true);
-
-    // Answer
-    sendBuffer(client,50,1);
-    client.stop();
-
-    // Reset variables for the next command
-    reset_status();
-  }
-}
-
-template <typename T>
-void publish(WiFiClient& client, const String& eventName, T value) {
-
-  // Publish request
-  publish_proto(client, eventName, value);
-
-}
-
-#elif defined(CORE_TEENSY)
 // Handle request on the Serial port
-void handle(usb_serial_class& serial){
-
-  if (serial.available()) {
-
-    // Handle request
-    handle_proto(serial,false,1,false);
-
-    // Answer
-    sendBuffer(serial,25,1);
-
-    // Reset variables for the next command
-    reset_status();
-  }
-}
-
-template <typename T>
-void publish(usb_serial_class& client, const String& eventName, T value) {
-
-  // Publish request
-  publish_proto(client, eventName, value);
-
-}
-
-#elif defined(__AVR_ATmega32U4__)
-// Handle request on the Serial port
-void handle(Serial_& serial){
-
-  if (serial.available()) {
-
-    // Handle request
-    handle_proto(serial,false,1,false);
-
-    // Answer
-    sendBuffer(serial,25,1);
-
-    // Reset variables for the next command
-    reset_status();
-  }
-}
-
-template <typename T>
-void publish(Serial_& client, const String& eventName, T value) {
-
-  // Publish request
-  publish_proto(client, eventName, value);
-
-}
-
 #else
-// Handle request on the Serial port
 void handle(HardwareSerial& serial){
 
   if (serial.available()) {
@@ -1154,7 +892,7 @@ void process(char c) {
             uint16_t eq_position = answer.indexOf('=', header_length); // Replacing 'magic number' 8 for fixed location of '='
             if (eq_position != -1)
               arguments = answer.substring(eq_position + 1, footer_start);
-          } 
+          }
           // All params mode --> pass all parameters, if any, to the function.  Function will be resonsible for parsing
           else if(AREST_PARAMS_MODE == 1) {
             arguments = answer.substring(header_length + 1, footer_start);
@@ -1235,11 +973,10 @@ bool send_command(bool headers, bool decodeArgs) {
 
   if (DEBUG_MODE) {
 
-    #if defined(ESP8266) || defined(ESP32)
-      Serial.print("Memory loss:");
-      Serial.println(freeMemory - ESP.getFreeHeap(), DEC);
-      freeMemory = ESP.getFreeHeap();
-    #endif
+    Serial.print("Memory loss:");
+    Serial.println(freeMemory - ESP.getFreeHeap(), DEC);
+    freeMemory = ESP.getFreeHeap();
+
 
     Serial.println(F("Sending command"));
     Serial.print(F("Command: "));
@@ -1318,7 +1055,6 @@ bool send_command(bool headers, bool decodeArgs) {
       }
     }
 
-    #if !defined(__AVR_ATmega32U4__) || !defined(ADAFRUIT_CC3000_H)
       if (state == 'a') {
         if (!LIGHTWEIGHT) {
           addToBufferF(F("{"));
@@ -1342,7 +1078,6 @@ bool send_command(bool headers, bool decodeArgs) {
           }
         }
       }
-    #endif
 
     if (state == 'w') {
 
@@ -1381,8 +1116,7 @@ bool send_command(bool headers, bool decodeArgs) {
         addToBufferF(F(", "));
       }
     }
-    
-    #if !defined(__AVR_ATmega32U4__)
+
       if (state == 'a') {
         if (!LIGHTWEIGHT) {
           addToBufferF(F("{"));
@@ -1406,7 +1140,6 @@ bool send_command(bool headers, bool decodeArgs) {
           }
         }
       }
-    #endif
 
     if (state == 'w') {
 
@@ -1481,11 +1214,10 @@ bool send_command(bool headers, bool decodeArgs) {
   }
 
   if (DEBUG_MODE) {
-    #if defined(ESP8266) || defined(ESP32)
-        Serial.print("Memory loss:");
-        Serial.println(freeMemory - ESP.getFreeHeap(), DEC);
-        freeMemory = ESP.getFreeHeap();
-    #endif
+    Serial.print("Memory loss:");
+    Serial.println(freeMemory - ESP.getFreeHeap(), DEC);
+    freeMemory = ESP.getFreeHeap();
+
     Serial.print(F("State of buffer at the end: "));
     Serial.println(buffer);
   }
@@ -1497,7 +1229,7 @@ bool send_command(bool headers, bool decodeArgs) {
 
 virtual void root_answer() {
 
-  #if defined(ADAFRUIT_CC3000_H) || defined(ESP8266) || defined(ethernet_h_) || defined(WiFi_h)
+  #if defined(ESP8266)
     #if !defined(PubSubClient_h)
       if (command != 'u') {
         send_http_headers();
@@ -1572,32 +1304,13 @@ void set_id(const String& device_id) {
 
       // Build client ID
       client_id = id + String(proKey);
-      
+
   }
 
   #endif
 
 }
 
-#if defined(__arm__)
-String getChipId() {
-
-  volatile uint32_t val1, val2, val3, val4;
-  volatile uint32_t *ptr1 = (volatile uint32_t *)0x0080A00C;
-  val1 = *ptr1;
-  volatile uint32_t *ptr = (volatile uint32_t *)0x0080A040;
-  val2 = *ptr;
-  ptr++;
-  val3 = *ptr;
-  ptr++;
-  val4 = *ptr;
-
-  char buf[33];
-  sprintf(buf, "%8x%8x%8x%8x", val1, val2, val3, val4);
-
-  return String(buf);
-}
-#endif
 
 #if defined(PubSubClient_h)
 String gen_random(int length) {
@@ -1605,27 +1318,8 @@ String gen_random(int length) {
   String randomString;
 
   #if defined(ESP8266)
-
-    randomString = String(ESP.getChipId());
-    randomString = randomString.substring(0, 6);
-
-  #elif defined(__arm__)
-
-    randomString = getChipId();
-    randomString = randomString.substring(0, 6);
-
-  #else
-
-  String charset = "abcdefghijklmnopqrstuvwxyz0123456789";
-
-  // Generate
-  int l = charset.length();
-  int key;
-  for (int n = 0; n < length; n++) {
-    key = random(0, l - 1);
-    randomString += charset[key];
-  }
-
+  randomString = String(ESP.getChipId());
+  randomString = randomString.substring(0, 6);
   #endif
 
   return randomString;
@@ -1658,18 +1352,17 @@ void addQuote() {
   if(index < OUTPUT_BUFFER_SIZE) {
     buffer[index] = '"';
     index++;
-  }  
+  }
 }
 
 
 void addStringToBuffer(const char * toAdd, bool quotable){
 
   if (DEBUG_MODE) {
-    #if defined(ESP8266)|| defined (ESP32)
-      Serial.print("Memory loss:");
-      Serial.println(freeMemory - ESP.getFreeHeap(),DEC);
-      freeMemory = ESP.getFreeHeap();
-    #endif
+    Serial.print("Memory loss:");
+    Serial.println(freeMemory - ESP.getFreeHeap(),DEC);
+    freeMemory = ESP.getFreeHeap();
+
     Serial.print(F("Added to buffer as char: "));
     Serial.println(toAdd);
   }
@@ -1705,52 +1398,18 @@ void addToBuffer(T toAdd, bool quotable=false) {
 
 // Register a function instead of a plain old variable!
 template <typename T>
-void addToBuffer(T(*toAdd)(), bool quotable=true) { 
+void addToBuffer(T(*toAdd)(), bool quotable=true) {
   addToBuffer(toAdd(), quotable);
-} 
-
-
-// // Add to output buffer
-// void addToBuffer(const __FlashStringHelper *toAdd, bool quotable){
-
-//   if (DEBUG_MODE) {
-//     #if defined(ESP8266)|| defined (ESP32)
-//     Serial.print("Memory loss:");
-//     Serial.println(freeMemory - ESP.getFreeHeap(),DEC);
-//     freeMemory = ESP.getFreeHeap();
-//     #endif
-//     Serial.print(F("Added to buffer as progmem: "));
-//     Serial.println(toAdd);
-//   }
-
-//   if(quotable) {
-//     addQuote();
-//   }
-
-//   uint8_t idx = 0;
-
-//   PGM_P p = reinterpret_cast<PGM_P>(toAdd);
-
-//   for ( unsigned char c = pgm_read_byte(p++);
-//         c != 0 && index < OUTPUT_BUFFER_SIZE;
-//         c = pgm_read_byte(p++), index++) {
-//     buffer[index] = c;
-//   }
-
-//   if(quotable) {
-//     addQuote();
-//   }
-// }
+}
 
 template <typename T>
 void sendBuffer(T& client, uint8_t chunkSize, uint8_t wait_time) {
 
   if (DEBUG_MODE) {
-    #if defined(ESP8266)|| defined (ESP32)
     Serial.print("Memory loss before sending:");
     Serial.println(freeMemory - ESP.getFreeHeap(),DEC);
     freeMemory = ESP.getFreeHeap();
-    #endif
+    
     Serial.print(F("Buffer size: "));
     Serial.println(index);
   }
@@ -1773,11 +1432,7 @@ void sendBuffer(T& client, uint8_t chunkSize, uint8_t wait_time) {
       intermediate_buffer[chunkSize] = '\0';
 
       // Send intermediate buffer
-      #ifdef ADAFRUIT_CC3000_H
-      client.fastrprint(intermediate_buffer);
-      #else
       client.print(intermediate_buffer);
-      #endif
 
       // Wait for client to get data
       delay(wait_time);
@@ -1790,11 +1445,10 @@ void sendBuffer(T& client, uint8_t chunkSize, uint8_t wait_time) {
   }
 
   if (DEBUG_MODE) {
-    #if defined(ESP8266) || defined (ESP32)
     Serial.print("Memory loss after sending:");
     Serial.println(freeMemory - ESP.getFreeHeap(),DEC);
     freeMemory = ESP.getFreeHeap();
-    #endif
+
     Serial.print(F("Buffer size: "));
     Serial.println(index);
   }
@@ -1803,11 +1457,10 @@ void sendBuffer(T& client, uint8_t chunkSize, uint8_t wait_time) {
     resetBuffer();
 
     if (DEBUG_MODE) {
-      #if defined(ESP8266) || defined (ESP32)
       Serial.print("Memory loss after buffer reset:");
       Serial.println(freeMemory - ESP.getFreeHeap(),DEC);
       freeMemory = ESP.getFreeHeap();
-      #endif
+
       Serial.print(F("Buffer size: "));
       Serial.println(index);
     }
@@ -1892,22 +1545,11 @@ void addHardwareToBuffer() {
 }
 
 
-// For non AVR boards
-#if defined (__arm__)
-char *dtostrf (double val, signed char width, unsigned char prec, char *sout) {
-  char fmt[20];
-  sprintf(fmt, "%%%d.%df", width, prec);
-  sprintf(sout, fmt, val);
-  return sout;
-}
-#endif
 
 // Memory debug
-#if defined(ESP8266) || defined(ESP32)
 void initFreeMemory(){
   freeMemory = ESP.getFreeHeap();
 }
-#endif
 
 #if defined(PubSubClient_h)
 void setMQTTServer(char* new_mqtt_server){
@@ -1969,9 +1611,7 @@ private:
   char * functions_names[NUMBER_FUNCTIONS];
 
   // Memory debug
-  #if defined(ESP8266) || defined(ESP32)
   int freeMemory;
-  #endif
 
 };
 
