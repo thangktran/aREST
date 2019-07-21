@@ -939,7 +939,7 @@ void reconnect(PubSubClient& client) {
           Serial.println(F("Connected to MQTT server"));
         }
         else {
-          Serial.println(F("Connected to aREST.io"));
+          Serial.println(F("Connected to default MQTT server"));
         }
         client.subscribe(in_topic);
 
@@ -1957,8 +1957,7 @@ private:
   uint8_t subscriptions_index;
   char * subscriptions_names[NUMBER_SUBSCRIPTIONS];
 
-  // aREST.io server
-  char* mqtt_server = "104.131.78.157";
+  char* mqtt_server = ""; // default mqtt_server.
   bool private_mqtt_server;
 
   #endif
