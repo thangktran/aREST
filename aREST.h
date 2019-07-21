@@ -66,6 +66,8 @@
 #ifndef aRest_h
 #define aRest_h
 
+#include <functional>
+
 // Include Arduino header
 #include "Arduino.h"
 
@@ -163,6 +165,7 @@ struct TypedVariable: Variable {
 public:
 
 public:
+typedef std::function<int (String)> FunctionHandler;
 
 aREST() {
   initialize();
@@ -1263,7 +1266,7 @@ virtual void root_answer() {
 }
 
 
-void function(char * function_name, int (*f)(String)){
+void function(char * function_name, FunctionHandler f){
 
   functions_names[functions_index] = function_name;
   functions[functions_index] = f;
@@ -1607,7 +1610,7 @@ private:
 
   // Functions array
   uint8_t functions_index;
-  int (*functions[NUMBER_FUNCTIONS])(String);
+  FunctionHandler functions[NUMBER_FUNCTIONS];
   char * functions_names[NUMBER_FUNCTIONS];
 
   // Memory debug
